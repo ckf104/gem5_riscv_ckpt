@@ -43,9 +43,9 @@ void open_logfile(char *ckptname)
     }
     printf("running log file: %s\n", logname);
     if(access(logname, R_OK) == -1)
-        logfile=open(logname, O_RDWR | O_CREAT);
+        logfile=open(logname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     else
-        logfile=open(logname, O_RDWR);
+        logfile=open(logname, O_RDWR | O_TRUNC);
 }
 
 void init_start(uint64_t max_inst, uint64_t warmup_inst, uint64_t max_period, char *ckptname)
@@ -83,7 +83,6 @@ void sample_func()
     endcycle = read_csr_cycle();
     endinst = read_csr_instret();
     sprintf(str, "{\"type\": \"max_inst\", \"times\": %d, \"cycles\": %ld, \"inst\": %ld}\n", sampleHapTimes, endcycle - startcycle, endinst - startinst);
-    sprintf(str, "sampleHapTimes: %d\n", sampleHapTimes);
     write(1, str, strlen(str));  
     write(logfile, str, strlen(str));  
 

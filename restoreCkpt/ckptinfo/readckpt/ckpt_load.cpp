@@ -146,11 +146,13 @@ void read_ckptinfo(char ckptinfo[])
     runinfo->startinsts = read_csr_instret();
     
     if(runLength != 0){
+        printf("runLength is set by checkpoint file: %ld, warmup: %ld\n", runLength, warmup);
         init_start(runLength, warmup, 1, ckptinfo);
     }
     else {
         warmup = siminfo.simNum/20;
         runLength = siminfo.simNum - warmup;
+        printf("runLength is set by default: %ld, warmup: %ld\n", runLength, warmup);
         init_start(runLength, warmup, 1, ckptinfo);
     }
     
