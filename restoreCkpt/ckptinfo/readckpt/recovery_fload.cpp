@@ -41,7 +41,7 @@ void recovery_nocomp(FILE *p)
         *((uint64_t *)linfos[j].addr) = linfos[j].data;
     }
     free(linfos);
-    printf("--- step 4, read first load infor and init them, first load num: %d ---\n", loadnum);
+    printf("--- step 4, read first load infor and init them, first load num: %llu ---\n", (unsigned long long)loadnum);
 }
 
 void recovery_datamap(FILE *p)
@@ -71,17 +71,18 @@ void recovery_datamap(FILE *p)
             }
         }
     }
-    printf("--- step 4, read first load infor and init them, first load num: %d ---\n", loadnum);
+    printf("--- step 4, read first load infor and init them, first load num: %llu ---\n", (unsigned long long)loadnum);
 }
 
 #define MaxCompressSize 1024*1024*30
 #define ExtraDataSize   1024*6
+#define MaxCompInputSize (MaxCompressSize*2 + ExtraDataSize)
 //read ckpt and restore first loads
 void recovery_fastlz(FILE *p)
 {
     uint64_t loadnum = 0;
     uint8_t *rawdata = (uint8_t *)malloc(MaxCompressSize+ExtraDataSize);
-    uint8_t *compdata = (uint8_t *)malloc(MaxCompressSize+ExtraDataSize);
+    uint8_t *compdata = (uint8_t *)malloc(MaxCompInputSize);
     uint64_t compsize, rawsize, infonum = 0, baseaddr = 0;
 
     uint8_t *cmap;
@@ -91,10 +92,30 @@ void recovery_fastlz(FILE *p)
         fread(&compsize, 8, 1, p);
         if(compsize==0) break;
 
+        if (compsize > MaxCompInputSize) {
+            printf("invalid compressed chunk size: %llu, max: %d\n",
+                   (unsigned long long)compsize, MaxCompInputSize);
+            exit(1);
+        }
+
         fread(&infonum, 8, 1, p);
-        fread(compdata, 1, compsize, p);
+        if (fread(compdata, 1, compsize, p) != compsize) {
+            printf("cannot read compressed chunk, size: %llu\n",
+                   (unsigned long long)compsize);
+            exit(1);
+        }
         rawsize = fastlz_decompress(compdata, compsize, rawdata, MaxCompressSize+ExtraDataSize);
-        printf("rawsize: %d, compsize: %d, infonum: %d\n", rawsize, compsize, infonum);
+        if (rawsize == 0 || rawsize > MaxCompressSize+ExtraDataSize) {
+            printf("fastlz decompress failed, rawsize: %llu, compsize: %llu, infonum: %llu\n",
+                   (unsigned long long)rawsize,
+                   (unsigned long long)compsize,
+                   (unsigned long long)infonum);
+            exit(1);
+        }
+        printf("rawsize: %llu, compsize: %llu, infonum: %llu\n",
+               (unsigned long long)rawsize,
+               (unsigned long long)compsize,
+               (unsigned long long)infonum);
         baseaddr = (uint64_t)rawdata;
         for(int n=0; n<infonum; n++) {
             addr = *((uint64_t *)baseaddr);
@@ -119,5 +140,5 @@ void recovery_fastlz(FILE *p)
     }
     free(rawdata);
     free(compdata);
-    printf("--- step 4, read first load infor and init them, first load num: %d ---\n", loadnum);
+    printf("--- step 4, read first load infor and init them, first load num: %llu ---\n", (unsigned long long)loadnum);
 }
